@@ -2,7 +2,13 @@
 title: "Activity Tracker - Reproducible research"
 author: "Gabe Boer"
 date: "9 oktober 2017"
-output: html_document
+output:
+  html_document: 
+    fig_caption: yes
+    keep_md: yes
+    toc: yes
+  pdf_document: default
+  word_document: default
 ---
 
 Header settings saying that code always needs to be shown.
