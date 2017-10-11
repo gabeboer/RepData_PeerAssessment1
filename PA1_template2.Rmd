@@ -1,0 +1,176 @@
+---
+title: "Activity Tracker - Reproducible research"
+author: "Gabe Boer"
+date: "9 oktober 2017"
+output:
+  html_document: 
+    fig_caption: yes
+    keep_md: yes
+    toc: yes
+  pdf_document: default
+  word_document: default
+---
+
+Header settings saying that code always needs to be shown.
+```{r setup, include=TRUE}
+knitr::opts_chunk$set(echo = TRUE)
+#setwd("~/Coursera R folder")
+```
+
+## Loading and preprocessing the data
+###1. Reading the data file
+This is an R Markdown document for the Reproducible Research assignment. 
+The first step is to manually manipulate the csv file in notepad. Removing all quotes ("").
+Didn't find a proper way in R to do it.
+The second step is reading the data from csv file. 
+
+```{r csv reading}
+act <- read.csv("activity.csv", sep = ",", header = FALSE, skip = 1, quote = "")
+
+names(act)[1] <- "Steps"
+names(act)[2] <- "Date"
+names(act)[3] <- "Interval"
+
+```
+
+###2. Process/Transform the data (if necessary) into a format more suitable for your analysis
+The date format is a bit awkward and needs some adjustments. Currently in "yyyy-mm-dd". With lubridate
+package some adjustments and additional values can be made (weekday) and make interval hours-minutes
+
+``` {r date}
+#act$Steps <- as.numeric(act$Steps)
+act$Date <- as.Date(act$Date, format = "%Y-%m-%d")
+
+```
+A quick summary of the loaded data will give:
+``` {r summary, echo=FALSE}
+summary(act)
+
+```
+
+## What is mean total number of steps taken per day
+### 1. Number of steps calculation
+``` {r total steps}
+
+totalsteps <- aggregate(Steps~Date, act, FUN = sum, na.action = na.omit)
+#head(totalsteps, 10)
+summary(totalsteps)
+```
+### 2. plot in histogram
+``` {r plot}
+library(ggplot2)
+qplot(totalsteps$Steps,geom="histogram", 
+      binwidth = 1000, 
+      xlab = "Total steps per day", 
+      ylab = "Frequency",
+      main = "histogram steps per day")
+
+```
+
+### 3a. the mean of the total number of steps taken per day
+``` {r mean}
+mean(totalsteps$Steps)
+```
+### 3b. the median of the total number of steps taken per day
+``` {r median}
+median(totalsteps$Steps)
+```
+## What is the average daily activity pattern?
+### 1. Make a time series plot of the 5-min interval (x) and the avg number of steps (y)
+``` {r 5min_interval}
+min5 <- aggregate(Steps~Interval, data = act, FUN = mean, na.rm = TRUE)
+
+ggplot(
+        data = min5,
+        aes(
+                x = Interval,
+                y = Steps)) +
+        geom_line() +
+        xlab("5 minutes interval") +
+        ylab("Average number of steps per day") +
+        ggtitle("Average Daily Activity Pattern")
+
+
+```
+
+### 2. which 5 min interval contains max number of steps? 
+``` {r maximal steps}
+max <- min5$Interval[which.max(min5$Steps)]
+max
+```
+
+
+## Imputing missing values
+The number of rows with NA values was allready available from the summary on the data set.
+### 1. calculate and report the total number of missing values
+``` {r NA rows}
+summary(act)
+
+```
+Showing that in 'dimension Steps' there are 2.304 rows with value NA.
+
+### 2. Devise strategy for filling the missing values in data set
+The 2.304 lines will get the average value of the interval (across days).
+### 3. create new dataset including values for missing values (6)
+``` {r imputed values}
+# make copy of original df
+act2 <- act
+
+# NA records wegschrijven
+act2na <- is.na(act2$Steps)
+
+# determine average of interval without na records
+intavg <- tapply(act2$Steps, act2$Interval, mean, na.rm=TRUE, simplify = TRUE)
+
+# add values of average to the na records
+act2$Steps[act2na] <- intavg[as.character(act2$Interval[act2na])]
+head(act2, 10)
+
+```
+### 4. Make histogram (7)
+``` {r plot_imputed}
+totstepsim <- aggregate(Steps~Date, act2, FUN = sum)
+qplot(totstepsim$Steps, geom = "histogram", 
+      binwidth = 1000, 
+      
+      xlab = "Total steps per day", 
+      ylab = "Frequency",
+      main = "histogram steps per day (imputed values for NA)"
+     )
+
+```
+
+## Are there differences in activity patterns between weekdays and weekends?
+
+### 1. Create a new factor variable in dataset 
+``` {r weekdays}
+# df with imputed values is starting point, make copy
+act3 <- act2
+
+# create weekdays column using function weekdays()
+act3$wkd <- weekdays(act3$Date)
+
+# create column where is stated weekday or weekend using ifelse(test, yes, no)
+act3$work <- ifelse(act3$wkd == "zaterdag" | act3$wkd == "zondag", "weekend", "weekday")
+
+```
+
+### 2. Make a panel plot containing time series plot (8)
+``` {r last_plot}
+min52 <- aggregate(Steps~Interval + work, data = act3, FUN = mean)
+
+ggplot(
+        data = min52,
+        aes(    x = Interval,
+                y = Steps,
+                color = work)) +
+        #facet_grid(work~.) +
+        facet_wrap(~work, ncol =1, nrow = 2) +
+        geom_line() + 
+        labs(title="Average number of daily steps", 
+             x="Intervals",
+        y="Number of steps")
+        
+        
+
+```
